@@ -1,14 +1,15 @@
+/// Ошибки, возникающие при обработке изображения.
 #[derive(Debug, thiserror::Error)]
 pub enum ProcessorError {
-    #[error("plugin error {code}: {message}")]
-    Plugin { code: i64, message: String },
-
+    /// Ошибка декодирования или сохранения изображения.
     #[error("invalid image: {0}")]
     Image(#[from] image::ImageError),
 
+    /// Ошибка загрузки динамической библиотеки или поиска символа `process_image`.
     #[error("plugin load error: {0}")]
     Load(#[from] libloading::Error),
 
-    #[error("params contain null byte which is not good for CSTring")]
+    /// Строка параметров содержит null-байт и не может быть передана плагину через FFI.
+    #[error("params string contains a null byte, cannot convert to CString")]
     BrokenParams,
 }

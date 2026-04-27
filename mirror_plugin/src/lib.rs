@@ -10,8 +10,8 @@ struct Params {
 
 #[unsafe(no_mangle)]
 extern "C" fn process_image(
-    height: c_uint,
     width: c_uint,
+    height: c_uint,
     rgba_data: *mut c_uchar,
     params: *const c_char,
 ) {
