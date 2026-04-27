@@ -1,0 +1,59 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug BLUR_PLUGIN",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "image_processor"
+                ],
+                "filter": {
+                    "name": "image_processor",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--input",
+                "examples/content.png",
+                "--output",
+                "examples/out_blur.png",
+                "--plugin",
+                "libblur_plugin",
+                "--params",
+                "examples/blur_params.json"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug MIRROR_PLUGIN",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "image_processor"
+                ],
+                "filter": {
+                    "name": "image_processor",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--input",
+                "examples/content.png",
+                "--output",
+                "examples/out_mirror.png",
+                "--plugin",
+                "libmirror_plugin",
+                "--params",
+                "examples/mirror_params.json"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
