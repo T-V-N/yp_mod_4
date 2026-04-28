@@ -21,7 +21,7 @@ pub fn process(img: &mut RgbaImage, plugin_path: &str, params: &str) -> Result<(
 
     let params_c = CString::new(params).map_err(|_| ProcessorError::BrokenParams)?;
 
-    unsafe {
+    let result = unsafe {
         (plugin.process_image)(
             img.width(),
             img.height(),
@@ -29,6 +29,10 @@ pub fn process(img: &mut RgbaImage, plugin_path: &str, params: &str) -> Result<(
             params_c.as_ptr() as *const i8,
         )
     };
+
+    if result < 0 {
+        return Err(ProcessorError::PluginError(result));
+    }
 
     Ok(())
 }

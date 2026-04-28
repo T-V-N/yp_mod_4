@@ -1,14 +1,5 @@
-use libloading::{Library, Symbol};
+use libloading::{Library, Symbol, library_filename};
 use std::os::raw::c_char;
-
-#[cfg(target_os = "windows")]
-const LIB_EXT: &str = "dll";
-
-#[cfg(target_os = "macos")]
-const LIB_EXT: &str = "dylib";
-
-#[cfg(target_os = "linux")]
-const LIB_EXT: &str = "so";
 
 /// Загруженные символы плагина, привязанные к времени жизни [`Plugin`].
 pub struct PluginInterface<'a> {
@@ -21,7 +12,7 @@ pub struct PluginInterface<'a> {
     /// - буфер остаётся живым до возврата из функции.
     pub process_image: Symbol<
         'a,
-        unsafe extern "C" fn(width: u32, height: u32, rgba_data: *mut u8, params: *const c_char),
+        unsafe extern "C" fn(width: u32, height: u32, rgba_data: *mut u8, params: *const c_char) -> i32,
     >,
 }
 
@@ -38,7 +29,7 @@ impl Plugin {
     /// # Errors
     /// [`libloading::Error`] — файл не найден или не является корректной shared library.
     pub fn new(filename: &str) -> Result<Self, libloading::Error> {
-        let path = format!("{}.{}", filename, LIB_EXT);
+        let path = library_filename(filename);
         Ok(Plugin {
             plugin: unsafe { Library::new(path) }?,
         })

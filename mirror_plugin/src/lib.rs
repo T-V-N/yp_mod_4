@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json;
-use std::ffi::{CStr, c_char, c_uchar, c_uint};
+use std::ffi::{CStr, c_char};
 
 #[derive(Debug, Deserialize)]
 struct Params {
@@ -8,24 +8,50 @@ struct Params {
     vertical: bool,
 }
 
+#[repr(C)]
+enum PluginResponse {
+    Ok = 0,
+    NullPointerInInput = -1,
+    InvalidUTF8 = -2,
+    InvalidJSON = -3,
+    Overflow = -4,
+}
+
+/// # SAFETY
+/// - `rgba_data` must be a not null pointer to a buffer of exactly `width * height * 4` bytes valid until end of processing
+/// - `params` must be a null-terminated C string vsalid until end of processing
 #[unsafe(no_mangle)]
-extern "C" fn process_image(
-    width: c_uint,
-    height: c_uint,
-    rgba_data: *mut c_uchar,
+unsafe extern "C" fn process_image(
+    width: u32,
+    height: u32,
+    rgba_data: *mut u8,
     params: *const c_char,
-) {
+) -> i32 {
+    if rgba_data.is_null() || params.is_null() {
+        return PluginResponse::NullPointerInInput as i32;
+    }
+
+    // SAFETY: ptr is non-null, checked above
     let json_str = match unsafe { CStr::from_ptr(params).to_str() } {
         Ok(s) => s,
-        Err(_) => return eprintln!("Plugin error: InvalidUtf8"), // invalid UTF-8
+        Err(_) => return PluginResponse::InvalidUTF8 as i32, // invalid UTF-8
     };
 
     let params: Params = match serde_json::from_str(json_str) {
         Ok(p) => p,
-        Err(_) => return eprintln!("Plugin error: InvalidJSON"), // invalid JSON
+        Err(_) => return PluginResponse::InvalidJSON  as i32, // invalid JSON
     };
 
-    let len = (height * width * 4) as usize;
+    let len_checked = (height as usize)
+        .checked_mul(width as usize)
+        .and_then(|n| n.checked_mul(4));
+
+    let len = match len_checked {
+        Some(l) => l,
+        None => return PluginResponse::Overflow as i32,
+    };
+
+    // SAFETY: rgba_data is non-null (checked above); len matches width * height * 4 also checked
     let data = unsafe { std::slice::from_raw_parts_mut(rgba_data, len) };
 
     apply_mirror(
@@ -35,6 +61,8 @@ extern "C" fn process_image(
         params.vertical,
         params.horizontal,
     );
+
+    return PluginResponse::Ok as i32;
 }
 
 fn apply_mirror(data: &mut [u8], width: usize, height: usize, vertical: bool, horizontal: bool) {
@@ -70,6 +98,8 @@ fn apply_mirror(data: &mut [u8], width: usize, height: usize, vertical: bool, ho
 mod tests {
     use super::*;
     use image::ImageReader;
+    use std::ffi::CString;
+    use PluginResponse;
 
     #[test]
     fn test_vertical_mirror_matches_reference() {
@@ -121,5 +151,15 @@ mod tests {
             .to_rgba8();
 
         assert_eq!(output.as_raw(), reference.as_raw());
+    }
+
+    #[test]
+    fn test_overflow_dimensions_returns_error() {
+        let mut data = vec![0u8; 4];
+        let params = CString::new(r#"{"vertical":true,"horizontal":false}"#).unwrap();
+        unsafe {
+            let result =  process_image(u32::MAX, u32::MAX, data.as_mut_ptr(), params.as_ptr());
+            assert_eq!(result, PluginResponse::Overflow as i32);
+        }
     }
 }

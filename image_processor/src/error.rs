@@ -12,4 +12,8 @@ pub enum ProcessorError {
     /// Строка параметров содержит null-байт и не может быть передана плагину через FFI.
     #[error("params string contains a null byte, cannot convert to CString")]
     BrokenParams,
+
+    /// Плагин вернул код ошибки.
+    #[error("plugin returned error code: {0}")]
+    PluginError(i32),
 }
